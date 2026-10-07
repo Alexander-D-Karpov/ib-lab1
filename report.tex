@@ -1,14 +1,20 @@
 \documentclass[14pt,a4paper]{extarticle}
 
-\usepackage[T2A]{fontenc}
-\usepackage[utf8]{inputenc}
+% Переносимо: компилируется и pdflatex (T2A), и xelatex/lualatex (fontspec).
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[T2A]{fontenc}
+    \usepackage[utf8]{inputenc}
+\else
+    \usepackage{fontspec}
+    \setmainfont{Liberation Serif}
+\fi
 \usepackage[russian]{babel}
 \usepackage[left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage{enumitem}
 
 \newcommand{\group}{Р3413}
 \newcommand{\worknum}{1}
@@ -21,6 +27,12 @@
     columns=fullflexible,
     keepspaces=true,
     showstringspaces=false
+}
+
+\newcommand{\shot}[1]{%
+    \begin{center}%
+    \fbox{\includegraphics[width=0.98\linewidth,height=0.42\textheight,keepaspectratio]{#1}}%
+    \end{center}%
 }
 
 \begin{document}
@@ -67,7 +79,7 @@ OWASP Top 10 (инъекции, XSS, недостатки аутентифика
 
 \section{Постановка задачи}
 Разработать REST API со следующими эндпоинтами:
-\begin{itemize}[nosep]
+\begin{itemize}
     \item \texttt{POST /auth/login} — аутентификация пользователя;
     \item \texttt{GET /api/data} — получение данных, доступно только
           аутентифицированным пользователям;
@@ -78,7 +90,7 @@ OWASP Top 10 (инъекции, XSS, недостатки аутентифика
 CI/CD pipeline с запуском SAST- и SCA-сканеров.
 
 \section{Используемые инструменты}
-\begin{itemize}[nosep]
+\begin{itemize}
     \item Python 3.12, Flask, Flask-SQLAlchemy, SQLite;
     \item PyJWT — выпуск и проверка JWT;
     \item bcrypt — хэширование паролей;
@@ -126,35 +138,39 @@ Bandit (SAST), pip-audit (SCA) и pytest.
 \subsection{Работа API}
 
 \paragraph{Логин и получение токена.}
-% \includegraphics[width=\linewidth]{images/01_login.png}
+\shot{images/01_login.png}
 
 \paragraph{Доступ к \texttt{/api/data} без токена (401) и с токеном (200).}
-% \includegraphics[width=\linewidth]{images/02_data_auth.png}
+\shot{images/02_data_auth.png}
 
 \paragraph{SQL-инъекция в логине отклонена.}
-% \includegraphics[width=\linewidth]{images/03_sqli.png}
+\shot{images/03_sqli.png}
 
 \paragraph{XSS: имя пользователя экранировано в ответе.}
-% \includegraphics[width=\linewidth]{images/04_xss.png}
+\shot{images/04_xss.png}
 
 \paragraph{Покупка кристаллов.}
-% \includegraphics[width=\linewidth]{images/05_buy.png}
+\shot{images/05_buy.png}
 
 \subsection{Отчёты SAST/SCA}
 
 \paragraph{Bandit (SAST) — критических проблем не найдено.}
-% \includegraphics[width=\linewidth]{images/06_bandit.png}
+\shot{images/06_bandit.png}
 
 \paragraph{pip-audit (SCA) — уязвимых зависимостей не найдено.}
-% \includegraphics[width=\linewidth]{images/07_pipaudit.png}
+\shot{images/07_pipaudit.png}
 
-\paragraph{Успешный запуск pipeline.}
-% \includegraphics[width=\linewidth]{images/08_actions.png}
+\paragraph{Автотесты (pytest) в составе pipeline.}
+\shot{images/09_tests.png}
+
+\paragraph{Успешный запуск pipeline (все шаги зелёные).}
+\shot{images/08_actions.png}
 
 \section{Ссылки}
-\begin{itemize}[nosep]
+\begin{itemize}
     \item Репозиторий: \url{https://github.com/Alexander-D-Karpov/ib-lab1}
-    \item Последний успешный pipeline: \url{...}
+    \item Последний успешный pipeline: \\
+          \url{https://github.com/Alexander-D-Karpov/ib-lab1/actions/runs/37653150323}
 \end{itemize}
 
 \section{Вывод}
