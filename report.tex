@@ -1,0 +1,203 @@
+\documentclass[14pt,a4paper]{extarticle}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage[left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\newcommand{\group}{Р3413}
+\newcommand{\worknum}{1}
+\newcommand{\workname}{Разработка защищённого REST API с интеграцией в CI/CD}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        Федеральное государственное автономное образовательное учреждение\\
+        высшего образования\\
+        «Национальный исследовательский университет ИТМО»
+
+        \vfill
+
+        Лабораторная работа №\worknum
+
+        \vspace{0.5cm}
+        по дисциплине «Информационная безопасность»
+
+        \vspace{0.5cm}
+        \textbf{\workname}
+    \end{center}
+
+    \vfill
+
+    \begin{flushright}
+        Выполнил:\\
+        Карпов Александр Дмитриевич\\
+        \group
+    \end{flushright}
+
+    \vfill
+    \begin{center}
+        Санкт-Петербург, 2026
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Цель работы}
+Получить практический опыт разработки безопасного backend-приложения с
+автоматизированной проверкой кода на уязвимости. Освоить базовые меры защиты из
+OWASP Top 10 (инъекции, XSS, недостатки аутентификации) и интеграцию
+инструментов анализа безопасности в CI/CD.
+
+\section{Постановка задачи}
+Разработать REST API со следующими эндпоинтами:
+\begin{itemize}[nosep]
+    \item \texttt{POST /auth/login} — аутентификация пользователя;
+    \item \texttt{GET /api/data} — получение данных, доступно только
+          аутентифицированным пользователям;
+    \item \texttt{POST /api/buy} — собственный метод: покупка кристаллов
+          (дополнительно реализован \texttt{POST /auth/register}).
+\end{itemize}
+Реализовать защиту от SQL-инъекций, XSS и небезопасной аутентификации; настроить
+CI/CD pipeline с запуском SAST- и SCA-сканеров.
+
+\section{Используемые инструменты}
+\begin{itemize}[nosep]
+    \item Python 3.12, Flask, Flask-SQLAlchemy, SQLite;
+    \item PyJWT — выпуск и проверка JWT;
+    \item bcrypt — хэширование паролей;
+    \item Bandit — статический анализ (SAST);
+    \item pip-audit — анализ зависимостей (SCA);
+    \item GitHub Actions — CI/CD;
+    \item pytest — автотесты; curl — ручное тестирование.
+\end{itemize}
+
+\section{Ход выполнения}
+
+\subsection{Архитектура приложения}
+Приложение собрано по схеме application factory. Логика вынесена в пакет
+\texttt{app}: модели (\texttt{models.py}), выпуск и проверка токена
+(\texttt{auth.py}), маршруты (\texttt{routes.py}), начальное наполнение БД
+(\texttt{seed.py}). Точка входа \texttt{run.py} лишь создаёт приложение.
+
+\subsection{Защита от SQL-инъекций}
+Все обращения к БД выполняются через ORM SQLAlchemy
+(\texttt{filter\_by}, \texttt{db.session.get}). Пользовательский ввод всегда
+передаётся как параметр запроса и экранируется драйвером, а не склеивается в
+строку SQL. Попытка входа с пейлоадом \texttt{admin' OR '1'='1} приводит к ответу
+401 — инъекция не срабатывает.
+
+\subsection{Защита от XSS}
+Все строковые поля, пришедшие от пользователя (\texttt{username}, \texttt{color}),
+экранируются функцией \texttt{markupsafe.escape} перед возвратом в JSON. Имя
+вида \texttt{<script>alert(1)</script>} возвращается как
+\texttt{\&lt;script\&gt;...} и не исполняется на клиенте.
+
+\subsection{Аутентификация}
+Пароли хранятся только в виде bcrypt-хэша со случайной солью
+(\texttt{bcrypt.hashpw}). При успешном входе выдаётся подписанный JWT (алгоритм
+HS256) с временем жизни. Защищённые эндпоинты закрыты декоратором
+\texttt{token\_required}, который проверяет наличие заголовка
+\texttt{Authorization: Bearer}, подпись токена и срок действия (\texttt{exp}).
+
+\subsection{CI/CD}
+Файл \texttt{.github/workflows/ci.yml} запускается на каждый \texttt{push} и
+\texttt{pull\_request} и последовательно выполняет: установку зависимостей,
+Bandit (SAST), pip-audit (SCA) и pytest.
+
+\section{Результаты}
+
+\subsection{Работа API}
+
+\paragraph{Логин и получение токена.}
+% \includegraphics[width=\linewidth]{images/01_login.png}
+
+\paragraph{Доступ к \texttt{/api/data} без токена (401) и с токеном (200).}
+% \includegraphics[width=\linewidth]{images/02_data_auth.png}
+
+\paragraph{SQL-инъекция в логине отклонена.}
+% \includegraphics[width=\linewidth]{images/03_sqli.png}
+
+\paragraph{XSS: имя пользователя экранировано в ответе.}
+% \includegraphics[width=\linewidth]{images/04_xss.png}
+
+\paragraph{Покупка кристаллов.}
+% \includegraphics[width=\linewidth]{images/05_buy.png}
+
+\subsection{Отчёты SAST/SCA}
+
+\paragraph{Bandit (SAST) — критических проблем не найдено.}
+% \includegraphics[width=\linewidth]{images/06_bandit.png}
+
+\paragraph{pip-audit (SCA) — уязвимых зависимостей не найдено.}
+% \includegraphics[width=\linewidth]{images/07_pipaudit.png}
+
+\paragraph{Успешный запуск pipeline.}
+% \includegraphics[width=\linewidth]{images/08_actions.png}
+
+\section{Ссылки}
+\begin{itemize}[nosep]
+    \item Репозиторий: \url{https://git.akarpov.ru/sanspie/ib-lab1}
+    \item Последний успешный pipeline: \url{...}
+\end{itemize}
+
+\section{Вывод}
+Разработан защищённый REST API с аутентификацией по JWT и хэшированием паролей
+bcrypt. Реализована защита от SQL-инъекций (ORM с параметризацией) и XSS
+(экранирование вывода). Настроен CI/CD pipeline с автоматическим запуском SAST
+(Bandit) и SCA (pip-audit) на каждый push и pull request. Все проверки
+безопасности и автотесты проходят успешно.
+
+\section{Ответы на контрольные вопросы}
+
+\subsection*{1. Почему bcrypt предпочтительнее SHA-256 для хранения паролей?}
+SHA-256 — быстрая хэш-функция общего назначения, и эта скорость играет против
+защиты: на GPU перебираются миллиарды хэшей в секунду. bcrypt спроектирован
+специально для паролей: он намеренно медленный, имеет настраиваемый фактор
+сложности (work factor), который можно повышать с ростом мощности железа, и
+встроенную случайную соль для каждого пароля. Соль защищает от радужных таблиц и
+не даёт одинаковым паролям давать одинаковые хэши.
+
+\subsection*{2. Разница между SAST и DAST.}
+SAST (статический анализ) исследует исходный код или байт-код без запуска
+приложения и находит потенциально опасные конструкции (небезопасные вызовы,
+хардкод секретов). DAST (динамический анализ) тестирует уже запущенное
+приложение «снаружи», посылая запросы и наблюдая реакцию, и находит уязвимости
+времени выполнения и конфигурации. SAST применяется раньше и видит код, но даёт
+ложные срабатывания; DAST видит реальное поведение, но не знает внутренностей.
+
+\subsection*{3. Как работает JWT?}
+JWT состоит из трёх частей, разделённых точкой: header (алгоритм и тип), payload
+(claims — например \texttt{sub}, \texttt{exp}) и signature. Header и payload —
+это base64url от JSON, они не шифруются, а только кодируются. Подпись считается
+по header и payload с секретным ключом сервера (для HS256 — HMAC-SHA256). При
+проверке сервер пересчитывает подпись по полученным header и payload и сравнивает
+с присланной: если ключ верный и данные не менялись — подписи совпадут.
+Дополнительно проверяется срок действия \texttt{exp}. Так сервер доверяет токену,
+не храня сессию.
+
+\subsection*{4. Чем опасны непроверенные сторонние зависимости?}
+В зависимостях (и их транзитивных зависимостях) могут быть известные уязвимости,
+которые наследуются приложением. Атакующему достаточно использовать публично
+описанную CVE в устаревшей библиотеке. Без регулярного аудита (SCA) такие дыры
+остаются незамеченными; отдельные риски — supply-chain атаки и typosquatting
+(вредоносные пакеты с похожими именами). Поэтому зависимости фиксируют по версиям
+и автоматически сканируют в CI.
+
+\end{document}
